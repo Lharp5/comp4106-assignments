@@ -11,7 +11,7 @@ class Search(object):
         self.visited = set()
         self.queue = deque()
 
-    def solve(self, initial_state, goal_state):
+    def solve(self, initial_state, goal_state, heuristic=None):
         return []
 
 
@@ -20,15 +20,15 @@ class BFS(Search):
         Search.__init__(self)
         self.search = "BFS"
 
-    def solve(self, initial_state, goal_state):
-        root = Node(initial_state)
+    def solve(self, initial_state, goal_state, heuristic=None):
+        root = Node(initial_state, goal_state, heuristic)
         current_node = root
         children = root.generate_children()
 
         self.visited.add(current_node.state)
         self.queue.extend(children)
 
-        # We grab the last element, then check if its the goal or if its already been seen
+        # We grab the first element, then check if its the goal or if its already been seen
         # If it has not been seen we add all its children to the end of the list.
         # We Then take the next element in the list which will progress in a breadth first manner
         while len(self.queue) > 0 and current_node.state is not goal_state:
@@ -63,8 +63,8 @@ class DFS(Search):
         Search.__init__(self)
         self.search = "DFS"
 
-    def solve(self, initial_state, goal_state):
-        root = Node(initial_state)
+    def solve(self, initial_state, goal_state, heuristic=None):
+        root = Node(initial_state, goal_state, heuristic)
         current_node = root
         children = root.generate_children()
 
@@ -105,6 +105,41 @@ class AS(Search):
     def __init__(self):
         Search.__init__(self)
         self.search = "A*"
+        self.queue = list()
 
-    def solve(self, initial_state, goal_state):
-        return []
+    def solve(self, initial_state, goal_state, heuristic=None):
+        root = Node(initial_state, goal_state, heuristic)
+        current_node = root
+        self.visited.add(current_node.state)
+        self.queue.extend(root.generate_children())
+        self.queue.sort(key=lambda x: x.cost + x.heuristic, reverse=True)
+
+        # We grab the first element, then check if its the goal or if its already been seen
+        # If it has not been seen we add all its children to the end of the list.
+        # We Then take the next element in the list which will progress in a breadth first manner
+        while len(self.queue) > 0 and current_node.state is not goal_state:
+            current_node = self.queue.pop()
+            if current_node.state in self.visited:
+                continue
+
+            if current_node.state == goal_state:
+                break
+
+            self.queue.extend([x for x in current_node.generate_children() if x.state not in self.visited])
+            self.queue.sort(key=lambda x: x.cost + x.heuristic, reverse=True)
+            self.visited.add(current_node.state)
+
+        # We have not found a solution return empty
+        if current_node.state != goal_state:
+            return []
+
+        # We have found a solution so build up the path
+        solution = []
+        while current_node is not None:
+            solution.append(current_node)
+            current_node = current_node.parent
+
+        # Put it in chronological order
+        solution.reverse()
+
+        return solution

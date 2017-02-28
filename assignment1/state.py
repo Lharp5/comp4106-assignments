@@ -1,19 +1,26 @@
 from copy import deepcopy
 from itertools import combinations
+from collections import Counter
 
 
 class State(object):
     def __str__(self):
         return str(self.state)
 
+    def __repr__(self):
+        return repr(self.state)
+
     def __init__(self, state=None):
         self.state = state
+
+    def get_cost(self, parent_state):
+        return 1
 
     def get_child_states(self):
         return []
 
     def __hash__(self):
-        return hash(repr([self.state]))
+        return hash(repr(self.state))
 
     def __eq__(self, other):
         return self.state == other.state
@@ -39,6 +46,17 @@ class BridgeState(State):
 
     def __repr__(self):
         return repr(self.state)
+
+    def get_cost(self, parent_state):
+        if 0 in self.state[0]:
+            source = 1
+            dest = 0
+        else:
+            source = 0
+            dest = 1
+
+        moved_entries = Counter(self.state[dest]) & Counter(parent_state.state[source])
+        return max(list(moved_entries.elements()))
 
     def get_child_states(self):
         take_from = 0
@@ -73,4 +91,119 @@ class BridgeState(State):
             # Putting the torch back on the other side
             temp2[put_into].insert(0, 0)
             child_states.append(BridgeState(temp2[0], temp2[1]))
+        return child_states
+
+
+class SquareState(State):
+    def __init__(self, rows, columns, state):
+        self.rows = rows
+        self.columns = columns
+        State.__init__(self, state)
+
+    def __eq__(self, other):
+        return repr(self) == repr(other)
+
+    def swap(self, source_row, source_column, dest_row, dest_column):
+        temp_list = deepcopy(self.state)
+        temp = temp_list[source_row][source_column]
+        temp_list[source_row][source_column] = temp_list[dest_row][dest_column]
+        temp_list[dest_row][dest_column] = temp
+        return SquareState(self.rows, self.columns, temp_list)
+
+    def horse_jump(self, source_row, source_column, dest_row, dest_column):
+        if self.state[dest_row][dest_column] is not 'X':
+            value = (self.state[dest_row][dest_column], self.state[source_row][source_column]) \
+                if self.state[dest_row][dest_column] > self.state[source_row][source_column] \
+                else (self.state[source_row][source_column], self.state[dest_row][dest_column])
+            return value
+        else:
+            return None
+
+    def get_child_states(self):
+        row = -1
+        column = -1
+        child_states = []
+        jumped = set()
+        for r, i in enumerate(self.state):
+                for c, j in enumerate(i):
+                    if j == 'X':
+                        row = r
+                        column = c
+                        continue
+                    # Down and Left/Right
+                    if r < self.rows-2:
+                        if c < self.columns - 1:
+                            value = self.horse_jump(r, c, r+2, c + 1)
+                            if value is not None and value not in jumped:
+                                jumped.add(value)
+                                child_states.append(self.swap(r, c, r+2, c + 1))
+                        if c > 0:
+                            value = self.horse_jump(r, c, r + 2, c - 1)
+                            if value is not None and value not in jumped:
+                                jumped.add(value)
+                                child_states.append(self.swap(r, c, r + 2, c - 1))
+                    # Up and Left/Right
+                    if r > 1:
+                        if c < self.columns - 1:
+                            value = self.horse_jump(r, c, r - 2, c + 1)
+                            if value is not None and value not in jumped:
+                                jumped.add(value)
+                                child_states.append(self.swap(r, c, r - 2, c + 1))
+                        if c > 0:
+                            value = self.horse_jump(r, c, r - 2, c - 1)
+                            if value is not None and value not in jumped:
+                                jumped.add(value)
+                                child_states.append(self.swap(r, c, r - 2, c - 1))
+                    # Left and Up/Down
+                    if c < self.columns - 2:
+                        if r < self.rows - 1:
+                            value = self.horse_jump(r, c, r + 1, c + 2)
+                            if value is not None and value not in jumped:
+                                jumped.add(value)
+                                child_states.append(self.swap(r, c, r + 1, c + 2))
+                        if r > 0:
+                            value = self.horse_jump(r, c, r - 1, c + 2)
+                            if value is not None and value not in jumped:
+                                jumped.add(value)
+                                child_states.append(self.swap(r, c, r - 1, c + 2))
+                    # Right and Up/Down
+                    if c > 1:
+                        if r < self.rows - 1:
+                            value = self.horse_jump(r, c, r + 1, c - 2)
+                            if value is not None and value not in jumped:
+                                jumped.add(value)
+                                child_states.append(self.swap(r, c, r + 1, c - 2))
+                        if r > 0:
+                            value = self.horse_jump(r, c, r - 1, c - 2)
+                            if value is not None and value not in jumped:
+                                jumped.add(value)
+                                child_states.append(self.swap(r, c, r - 1, c - 2))
+
+        if row is -1 or column is -1:
+            return []
+
+        # Swapping with blank space
+        if row < self.rows -1:
+            child_states.append(self.swap(row, column, row+1, column))
+
+            if column < self.columns -1:
+                child_states.append(self.swap(row, column, row + 1, column + 1))
+
+            if column > 0:
+                child_states.append(self.swap(row, column, row + 1, column - 1))
+
+        if row > 0:
+            child_states.append(self.swap(row, column, row - 1, column))
+            if column < self.columns - 1:
+                child_states.append(self.swap(row, column, row - 1, column + 1))
+
+            if column > 0:
+                child_states.append(self.swap(row, column, row - 1, column - 1))
+
+        if column < self.columns - 1:
+            child_states.append(self.swap(row, column, row, column + 1))
+
+        if column > 0:
+            child_states.append(self.swap(row, column, row, column - 1))
+
         return child_states
