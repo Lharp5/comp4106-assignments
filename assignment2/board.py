@@ -70,34 +70,45 @@ class Board(object):
         for piece in pieces:
             self.bank[player][piece] += 1
 
+    def is_valid_move(self, player, start, dest):
+        # Checking to make sure start point is in bounds
+        if start[0] < 0 or start[1] < 0 or start[0] >= len(self.state) or start[1] >= len(self.state):
+            return False
+
+        # Checking to make sure dest point is in bounds
+        if dest[0] < 0 or dest[1] < 0 or dest[0] >= len(self.state) or dest[1] >= len(self.state):
+            return False
+
+        # Checking to make sure we are looking at one axis
+        if not ((start[0] == dest[0] and start[1] != dest[1]) or (start[0] != dest[0] and start[1] == dest[1])):
+            return False
+
+        # Checking to make sure we are not moving to a corner piece
+        if dest in [(1, 0), (0, 0), (0, 1), (0, 6), (0, 7), (1, 7), (6, 7), (7, 7), (7, 6), (7, 1), (7, 0), (6, 0)]:
+            return False
+
+        # Checking to make sure we have a destination and start point
+        if self.state[start[0]][start[1]] is None or self.state[dest[0]][dest[1]] is None:
+            return False
+
+        # Checking to make sure we are grabbing a valid number of pieces, and we have enough pieces
+        if start[2] < 1 or start[2] > 5 or start[2] > len(self.state[start[0]][start[1]]):
+            return False
+
+        # Checking to make sure the piece we are grabbing is a player controlled square
+        if self.state[start[0]][start[1]][-1] != player:
+            return False
+
+        # if we have passed all conditions we can return true
+        return True
+
     # Attempt to make a move, returns the board state if move is valid, None otherwise
     # in: Character representing red or green player
     # in: start tuple of the x, y, n coordinate of the stack you wish to move, and number you wish to move
     # in: dest tuple of x, y coordinate of the location you wish to move to
     def make_move(self, player, start, dest):
 
-        # Checking to make sure start point is in bounds
-        if start[0] < 0 or start[1] < 0 or start[0] >= len(self.state) or start[1] >= len(self.state):
-            return None
-
-        # Checking to make sure dest point is in bounds
-        if dest[0] < 0 or dest[1] < 0 or dest[0] >= len(self.state) or dest[1] >= len(self.state):
-            return None
-
-        # Checking to make sure we are looking at one axis
-        if not ((start[0] == dest[0] and start[1] != dest[1]) or (start[0] != dest[0] and start[1] == dest[1])):
-            return None
-
-        # Checking to make sure we have a destination and start point
-        if self.state[start[0]][start[1]] is None or self.state[dest[0]][dest[1]] is None:
-            return None
-
-        # Checking to make sure we are grabbing a valid number of pieces, and we have enough pieces
-        if start[2] < 1 or start[2] > 5 or start[2] > len(self.state[start[0]][start[1]]):
-            return None
-
-        # Checking to make sure the piece we are grabbing is a player controlled square
-        if self.state[start[0]][start[1]][-1] != player:
+        if not self.is_valid_move(player, start, dest):
             return None
 
         # Check if we are moving the correct distance away
