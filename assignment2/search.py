@@ -9,47 +9,38 @@ class Node(object):
         self.heuristic = heuristic
         self.move = move
         self.parent = parent
-        self.value = None
-
-    def set_value(self, val):
-        self.value = val
 
     def evaluate(self, player):
-        self.value = self.heuristic(player)
+        return self.heuristic(self.state, player)
 
-    def get_children(self, player):
+    def get_children_moves(self, player):
         children = []
-        for x, row in enumerate(self.state):
+        for x, row in enumerate(self.state.state):
             for y, square in enumerate(row):
                 # If we are not considering a square controlled by player then don't bother adding the child
-                if len(square) <= 0 or square[-1] != player:
+                if square is None or len(square) <= 0 or square[-1] != player:
                     continue
 
-                # for 1 to number of pieces you can move, generate your moves
+                # if len(children) == 49:
+                #     print "BLAH"
+
+                # for 1 to number of pieces you can move, generate your moves only if valid
                 # note: python range is exclusive so it would be 1-5
                 for numPieces in range(1, len(square)+1):
                     # moving from 1 up to n pieces away
-                    for dist in range(1, numPieces):
+                    for dist in range(1, numPieces+1):
                         # moving along the positive X
-                        new_move = self.state.make_move(player, (x, y, numPieces), (x + dist, y))
-                        if new_move is not None:  # If the move was valid add it to the children list
-                            children.append(Node(new_move, self.heuristic, parent=self,
-                                                 move=((x, y, numPieces), (x + dist, y))))
+                        if self.state.is_valid_move(player, (x, y, numPieces), (x + dist, y)):
+                            children.append(((x, y, numPieces), (x + dist, y)))
                         # moving along the negative X
-                        new_move = self.state.make_move(player, (x, y, numPieces), (x - dist, y))
-                        if new_move is not None:  # If the move was valid add it to the children list
-                            children.append(Node(new_move, self.heuristic, parent=self,
-                                                 move=((x, y, numPieces), (x - dist, y))))
+                        if self.state.is_valid_move(player, (x, y, numPieces), (x - dist, y)):
+                            children.append(((x, y, numPieces), (x - dist, y)))
                         # moving along the positive y
-                        new_move = self.state.make_move(player, (x, y, numPieces), (x, y + dist))
-                        if new_move is not None:  # If the move was valid add it to the children list
-                            children.append(Node(new_move, self.heuristic, parent=self,
-                                                 move=((x, y, numPieces), (x, y + dist))))
+                        if self.state.is_valid_move(player, (x, y, numPieces), (x, y + dist)):
+                            children.append(((x, y, numPieces), (x, y + dist)))
                         # moving along the negative y
-                        new_move = self.state.make_move(player, (x, y, numPieces), (x, y - dist))
-                        if new_move is not None:  # If the move was valid add it to the children list
-                            children.append(Node(new_move, self.heuristic, parent=self,
-                                                 move=((x, y, numPieces), (x, y - dist))))
+                        if self.state.is_valid_move(player, (x, y, numPieces), (x, y - dist)):
+                            children.append(((x, y, numPieces), (x, y - dist)))
 
         # return the list of our children
         return children
@@ -59,45 +50,63 @@ class Search(object):
     def __init__(self, player, search_depth):
         self.depth = search_depth
         self.player = player
+        self.trimmed = 0
 
     def get_best_move(self, current_board_state, player, heuristic):
-        best_node = self.alphabeta(Node(current_board_state, heuristic), self.depth, float('-inf'), float('+inf'), True, player)
-        return best_node.state, best_node.move
+        children_moves = Node(current_board_state, heuristic).get_children_moves(player)
+        best_move = None
+        best_state = None
+        best_score = float('-inf')
 
-    def alphabeta(self, node, depth, a, b, max_player, player):
+        for move in children_moves:
+            best_node = Node(current_board_state.make_move(player, move[0], move[1]),
+                             heuristic,
+                             parent=children_moves,
+                             move=move)
+            score = self.min_value(best_node, player, self.depth-1, float('-inf'), float('inf'))
+            if score > best_score:
+                best_score = score
+                best_state = best_node.state
+                best_move = best_node.move
+
+        return best_state, best_move
+
+    def max_value(self, node, player, depth, a, b):
         next_player = 'R' if player == 'G' else 'G'
         if depth == 0:
-            node.evaluate(self.player)
-            return node
+            return node.evaluate(self.player)
 
-        candidate = None
+        children = node.get_children_moves(player)
+        for child in children:
+            a = max(a, self.min_value(Node(node.state.make_move(player, child[0], child[1]),
+                                           node.heuristic,
+                                           parent=node,
+                                           move=child),
+                                      next_player,
+                                      depth-1,
+                                      a,
+                                      b))
+            if a >= b:
+                self.trimmed += 1
+                return a
+        return a
 
-        if max_player:
-            v = float('-inf')
+    def min_value(self, node, player, depth, a, b):
+        next_player = 'R' if player == 'G' else 'G'
+        if depth == 0:
+            return node.evaluate(self.player)
 
-            for child in node.get_children(player):
-                updated_child = self.alphabeta(child, depth-1, a, b, False, next_player)
-                v = max(v, updated_child.value)
-                a = max(a, v)
-                # Beta cutoff
-                if b <= a:
-                    break
+        children = node.get_children_moves(player)
+        for child in children:
+            b = min(b, self.max_value(Node(node.state.make_move(player, child[0], child[1]), node.heuristic,
+                                           parent=node,
+                                           move=child),
+                                      next_player,
+                                      depth-1,
+                                      a,
+                                      b))
+            if b <= a:
+                self.trimmed += 1
+                return b
+        return b
 
-                # We want to consider this node as valid if it passes the cutoff
-                candidate = child
-                candidate.set_value(v)
-        else:
-            v = float('inf')
-            for child in node.get_children(player):
-                updated_child = self.alphabeta(child, depth - 1, a, b, False, next_player)
-                v = min(v, updated_child.value)
-                b = min(b, v)
-                # Alpha cut off
-                if b <= a:
-                    break
-
-                # We want to consider this node as valid if it passes the cutoff
-                candidate = child
-                candidate.set_value(v)
-
-        return candidate
