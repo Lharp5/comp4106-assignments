@@ -62,5 +62,5 @@ decc = DecisionTreeClassifier(class_data, 10)
 decAccuracy = decc.train()
 print_matrix(decAccuracy)
 
-print "Dependency Tree Accuracy: " + str(calculate_accuracy(decAccuracy))
+# print "Dependency Tree Accuracy: " + str(calculate_accuracy(decAccuracy))
 

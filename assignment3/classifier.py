@@ -203,7 +203,7 @@ class DependenceTreeClassifier(Classifier):
 
 def entropy(pair):
     total_size = sum(pair)
-    if (float(pair[0])/total_size) == float(0):
+    if total_size == float(0) or (float(pair[0])/total_size) == float(0) or (float(pair[1])/total_size) == float(0):
         return 0
     return -(float(pair[0])/total_size) * math.log((float(pair[0])/total_size), 2) \
            - (float(pair[1])/total_size) * math.log((float(pair[1])/total_size), 2)
@@ -214,6 +214,17 @@ class DecisionTreeClassifier(Classifier):
         Classifier.__init__(self, class_data, num_features)
 
     def generate_tree(self, positive_set, negative_set, parent_node=None, nodes=None):
+        # Determine what value to set
+        def base_case(num_pos, num_neg):
+            if num_pos >= num_neg:
+                parent_node.set_value(0)
+            else:
+                parent_node.set_value(1)
+            return None
+        # Check Base Case that we have every node in the list
+        if nodes is not None and len(nodes) == self.num_features:
+            return base_case(len(positive_set), len(negative_set))
+
         new_positive_0_set = []
         new_negative_0_set = []
         new_positive_1_set = []
@@ -223,7 +234,16 @@ class DecisionTreeClassifier(Classifier):
         root = None
         current_node = None
 
+        current_node_list = []
+
+        # add the list we passed in
+        if nodes is not None:
+            current_node_list.extend(nodes)
+
         for i in range(self.num_features):
+            # If we are iterating to a node that is already in our list skip,
+            if parent_node is not None and any(x.id == i for x in nodes):
+                continue
             curr_pos_0_set = []
             curr_neg_0_set = []
             curr_pos_1_set = []
@@ -249,6 +269,10 @@ class DecisionTreeClassifier(Classifier):
 
             s = [s0[0] + s1[0], s0[1] + s1[1]]
 
+            # Base case #2
+            if entropy(s) == 0:
+                return base_case(s[0], s[1])
+
             total_data = len(positive_set) + len(negative_set)
             gain = entropy(s) - (float(sum(s0)) / total_data)*entropy(s0) - (float(sum(s1)) / total_data)*entropy(s1)
 
@@ -261,19 +285,26 @@ class DecisionTreeClassifier(Classifier):
                 new_negative_1_set = curr_neg_1_set
 
         # Create new node on the best gain
-        if current_node is None:
+        if parent_node is None:
             root = Node(best_feature)
             current_node = root
         else:
-            current_node = current_node.create_child(best_feature)
+            current_node = parent_node.create_child(best_feature)
+
+        # add our node to the current node list
+        current_node_list.append(current_node)
+
+        # Recursively create tree from 0 and 1.
+        self.generate_tree(new_positive_0_set, new_negative_0_set, current_node, current_node_list)
+        self.generate_tree(new_positive_1_set, new_negative_1_set, current_node, current_node_list)
+        return root
 
     def perform_train_and_test(self, training_data, testing_data):
-        best_class = 0
+        for test_data in testing_data:
+            best_class = 0
+            for i, training_class in enumerate(training_data):
+                # If we have reached the last training data
+                if i == best_class:  # Do not compare with ourselves
+                    continue
 
-        for i, training_class in enumerate(training_data):
-            # If we have reached the last training data
-            if i == best_class:  # Do not compare with ourselves
-                continue
-
-            self.generate_tree(training_data[best_class], training_class)
-            # Calculate Entropy of each object for the best training set and the current one.
+                tree_root = self.generate_tree(training_data[best_class], training_class)
