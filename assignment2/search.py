@@ -53,6 +53,7 @@ class Search(object):
         self.trimmed = 0
 
     def get_best_move(self, current_board_state, player, heuristic):
+        self.trimmed = 0
         children_moves = Node(current_board_state, heuristic).get_children_moves(player)
         best_move = None
         best_state = None
