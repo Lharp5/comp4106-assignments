@@ -3,11 +3,13 @@ from dependence_tree import DependenceTree
 from copy import deepcopy
 from node import Node
 import math
+import itertools
 
 
 def print_matrix(mat):
     print(''.join(['{:9} '.format('Class '+str(row+1)) for row in range(len(mat[0]))]))
     print('\n'.join([''.join(['{:8} '.format(round(item, 2)) for item in row]) for row in mat]))
+
 
 def calculate_accuracy(acc):
     count = 0
@@ -300,11 +302,40 @@ class DecisionTreeClassifier(Classifier):
         return root
 
     def perform_train_and_test(self, training_data, testing_data):
-        for test_data in testing_data:
-            best_class = 0
-            for i, training_class in enumerate(training_data):
-                # If we have reached the last training data
-                if i == best_class:  # Do not compare with ourselves
-                    continue
+        # Test each class
 
-                tree_root = self.generate_tree(training_data[best_class], training_class)
+        root_dict = {}
+
+        # Training, generate all the combinations of decision trees for the training data
+        for a, b in itertools.combinations(training_data, 2):
+            root_dict[(training_data.index(a), training_data.index(b))] = self.generate_tree(a, b)
+
+        class_accuracy = []
+        for c, test_data in enumerate(testing_data):
+            class_accuracy.append(0)
+            # Using pairwise classification
+            for data in test_data:
+                best_guess = 0
+                for next_class in range(1, len(training_data)):
+                    current_node = root_dict.get((best_guess, next_class), None)
+                    while current_node is not None:
+                        # If we have a value, we found the leaf, check to see which class it wishes to classify
+                        if current_node.value is not None:
+                            if current_node.value == 1:
+                                best_guess = next_class
+                            break
+
+                        # Progress through tree
+                        decision = data.features[current_node.id]
+                        current_node = current_node.children[decision]
+
+                self.confusion_matrix[c][best_guess] += 1
+                # Determine success or failure of classification
+                if best_guess == c:
+                    class_accuracy[c] += 1
+
+            # Changing the confidence from a count to a probability of how many classes it should have correctly guessed
+            class_accuracy[c] = float(class_accuracy[c]) / len(test_data)
+            print "Class " + str(c) + " Accuracy: " + str(class_accuracy[c])
+
+        return class_accuracy

@@ -2,6 +2,14 @@ from dependence_tree import DependenceTree
 from data import Data
 from classifier import BayesianClassifier, DependenceTreeClassifier, print_matrix, calculate_accuracy, DecisionTreeClassifier
 from graph import Graph
+from file_loader import Load_File_Data
+
+
+real_data_file = 'wine.csv'
+real_data, real_num_features = Load_File_Data(real_data_file)
+
+for i in range(len(real_data)):
+    real_data[i] = [Data(real_num_features, data=feature_list) for feature_list in real_data[i]]
 
 c1dt = DependenceTree(True)
 c2dt = DependenceTree(True)
@@ -22,45 +30,56 @@ print c3dt
 print "Class 4 Generated DepTree"
 print c4dt
 
-class_data = [[], [], [], []]
+generated_class_data = [[], [], [], []]
 
 for i in range(2000):
-    class_data[0].append(Data(10, c1dt, True))
-    class_data[1].append(Data(10, c2dt, True))
-    class_data[2].append(Data(10, c3dt, True))
-    class_data[3].append(Data(10, c4dt, True))
+    generated_class_data[0].append(Data(10, c1dt, True))
+    generated_class_data[1].append(Data(10, c2dt, True))
+    generated_class_data[2].append(Data(10, c3dt, True))
+    generated_class_data[3].append(Data(10, c4dt, True))
+
+var = raw_input("Real World Data (1) or Generated Data (2) : ")
+if int(var) == 1:
+    print "Using Real World Data"
+    class_data = real_data
+    num_features = real_num_features
+else:
+    print "Using Generated Data"
+    class_data = generated_class_data
+    num_features = 10
 
 depTrees = list()
-depTrees.append(DependenceTree())
-depTrees.append(DependenceTree())
-depTrees.append(DependenceTree())
-depTrees.append(DependenceTree())
+for x in range(len(class_data)):
+    depTrees.append(DependenceTree())
 
-g = Graph(10, class_data)
+g = Graph(num_features, class_data)
 mst = g.run_max_prim()
-depTrees[0].configure_from_mst(mst)
-depTrees[1].configure_from_mst(mst)
-depTrees[2].configure_from_mst(mst)
-depTrees[3].configure_from_mst(mst)
+
+for tree in depTrees:
+    tree.configure_from_mst(mst)
 
 print "Independent Bayesian Classifier: Accuracy By Run:"
-bc = BayesianClassifier(class_data, 10)
+bc = BayesianClassifier(class_data, num_features)
 accuracy = bc.train()
+print "Indep Bayes Accuracy Per Fold:"
 print_matrix(accuracy)
 
 print "Independent Bayesian Accuracy: " + str(calculate_accuracy(accuracy))
 
 print "Dependency Tree Classifier: Accuracy By Run:"
-depc = DependenceTreeClassifier(class_data, 10, depTrees)
+depc = DependenceTreeClassifier(class_data, num_features, depTrees)
 depAccuracy = depc.train()
+print "DepTree Accuracy Per Fold:"
 print_matrix(depAccuracy)
 
 print "Dependency Tree Accuracy: " + str(calculate_accuracy(depAccuracy))
 
-print "Decision Tree Classifier: Accuracy By Run:"
-decc = DecisionTreeClassifier(class_data, 10)
+print "Decision Tree Classifier:"
+decc = DecisionTreeClassifier(class_data, num_features)
 decAccuracy = decc.train()
+
+print "DecTree Accuracy Per Fold:"
 print_matrix(decAccuracy)
 
-# print "Dependency Tree Accuracy: " + str(calculate_accuracy(decAccuracy))
+print "Decision Tree Accuracy: " + str(calculate_accuracy(decAccuracy))
 

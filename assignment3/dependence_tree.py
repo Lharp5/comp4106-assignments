@@ -58,7 +58,7 @@ class DependenceTree(object):
                 mst_nodes.remove(current_node.id)
                 if len(nodes_left) == 0:
                     break
-                current_node = nodes_left.pop()
+                current_node = nodes_left.pop(0)
             else:
                 current_node = None
 

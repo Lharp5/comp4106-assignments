@@ -4,10 +4,13 @@ random.seed()
 
 
 class Data(object):
-    def __init__(self, num_features, dependency_tree=None, random_data=False):
+    def __init__(self, num_features, dependency_tree=None, random_data=False, data=None):
         self.features = []
-        for x in range(num_features):
-            self.features.append(0)
+        if data is not None:
+            self.features = data
+        else:
+            for x in range(num_features):
+                self.features.append(0)
 
         self.dependency_tree = dependency_tree
         if self.dependency_tree is not None and random_data:
