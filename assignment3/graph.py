@@ -15,9 +15,9 @@ class Graph(object):
             flat_data += entry
 
         # Generate our edges using Expected Mutual information Measure
-        for x,y in itertools.combinations(self.vertices, 2):
+        for x, y in itertools.combinations(self.vertices, 2):
             emi = 0
-            for i,j in itertools.permutations([0, 1]):
+            for i, j in itertools.permutations([0, 1]):
                 cij = 0
                 ci = 0
                 cj = 0
