@@ -63,16 +63,12 @@ bc = BayesianClassifier(class_data, num_features)
 accuracy = bc.train()
 print "Indep Bayes Accuracy Per Fold:"
 print_matrix(accuracy)
-
-print "Independent Bayesian Accuracy: " + str(calculate_accuracy(accuracy))
-
+2
 print "Dependency Tree Classifier: Accuracy By Run:"
 depc = DependenceTreeClassifier(class_data, num_features, depTrees)
 depAccuracy = depc.train()
 print "DepTree Accuracy Per Fold:"
 print_matrix(depAccuracy)
-
-print "Dependency Tree Accuracy: " + str(calculate_accuracy(depAccuracy))
 
 print "Decision Tree Classifier:"
 decc = DecisionTreeClassifier(class_data, num_features)
@@ -81,5 +77,7 @@ decAccuracy = decc.train()
 print "DecTree Accuracy Per Fold:"
 print_matrix(decAccuracy)
 
+print "Independent Bayesian Accuracy: " + str(calculate_accuracy(accuracy))
+print "Dependency Tree Accuracy: " + str(calculate_accuracy(depAccuracy))
 print "Decision Tree Accuracy: " + str(calculate_accuracy(decAccuracy))
 
