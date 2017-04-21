@@ -53,6 +53,9 @@ class Hand(object):
 
         return binary_hand
 
+    def to_binary_list(self):
+        return [int(x.strip()) for x in self.to_binary()]
+
     def from_binary(self):
         pass
 
@@ -86,13 +89,12 @@ class Hand(object):
         play_suit = self.play[0]
         lead_suit = self.lead[0]
 
-        # Left Bower Lead cases
-        if self.left_bower(self.lead) and play_suit != self.trump and self.has_suit(self.trump):
-            return False
+        # Left Bower Cases, treat the suit as trump suit
+        if self.left_bower(self.lead):
+            lead_suit = self.trump
 
-        # Left Bower played case:
-        if self.left_bower(self.play) and lead_suit != self.trump and self.has_suit(lead_suit):
-            return False
+        if self.left_bower(self.play):
+            play_suit = self.trump
 
         # Check if not following suit
         if play_suit != lead_suit and self.has_suit(lead_suit):

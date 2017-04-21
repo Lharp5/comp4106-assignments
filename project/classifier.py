@@ -1,5 +1,4 @@
 from data import Data
-from dependence_tree import DependenceTree
 from copy import deepcopy
 from node import Node
 import math
@@ -94,6 +93,9 @@ class Classifier(object):
     def perform_train_and_test(self, training_data, testing_data):
         return 0
 
+    def evaluate(self, data):
+        pass
+
 
 class BayesianClassifier(Classifier):
     def __init__(self, class_data, num_features):
@@ -125,18 +127,7 @@ class BayesianClassifier(Classifier):
         for c, class_testing_data in enumerate(testing_data):
             class_accuracy.append(0)
             for data in class_testing_data:
-                best_guess = -1
-                best_confidence = -1
-
-                for bc, probability in enumerate(self.class_probabilities):
-                    confidence = 1.0
-                    for feature, prob in zip(data.features, probability.features):
-                        confidence *= prob if feature == 0 else (1.0 - prob)
-
-                    if confidence > best_confidence:
-                        best_confidence = confidence
-                        best_guess = bc
-
+                best_guess, best_confidence = self.evaluate(data)
                 self.confusion_matrix[c][best_guess] += 1
 
                 if best_guess == c:
@@ -148,6 +139,21 @@ class BayesianClassifier(Classifier):
 
         return class_accuracy
 
+    def evaluate(self, data):
+        best_guess = -1
+        best_confidence = -1
+
+        for bc, probability in enumerate(self.class_probabilities):
+            confidence = 1.0
+            for feature, prob in zip(data.features, probability.features):
+                confidence *= prob if feature == 0 else (1.0 - prob)
+
+            if confidence > best_confidence:
+                best_confidence = confidence
+                best_guess = bc
+
+        return best_guess, best_confidence
+
 
 class DependenceTreeClassifier(Classifier):
     def __init__(self, class_data, num_features, dep_trees):
@@ -156,10 +162,8 @@ class DependenceTreeClassifier(Classifier):
 
     def perform_train_and_test(self, training_data, testing_data):
 
-        training_trees = deepcopy(self.depTrees)
-
         # Training our tree
-        for data, tree in zip(training_data, training_trees):
+        for data, tree in zip(training_data, self.depTrees):
             # Calculate edge weights of the tree for each data point
             tree.generate_weights(data)
             # print "Class Generated Weights"
@@ -172,25 +176,7 @@ class DependenceTreeClassifier(Classifier):
 
             # for each data in the class
             for data in class_testing_data:
-                best_guess = -1
-                best_confidence = -1
-
-                for tc, tree in enumerate(training_trees):
-                    confidence = 1.0
-                    for f, feature in enumerate(data.features):
-                        n = tree.get_node(f)
-
-                        # Check for root
-                        if n.parent is None:
-                            confidence *= n.value[0] if feature == 0 else (1 - n.value[0])
-                        else:  # Check the parent's value, and get the probability of the current feature
-                            confidence *= n.value[data.features[n.parent.id]] if \
-                                feature == 0 else (1 - n.value[data.features[n.parent.id]])
-
-                    if confidence > best_confidence:
-                        best_confidence = confidence
-                        best_guess = tc
-
+                best_guess, best_confidence = self.evaluate(data)
                 self.confusion_matrix[c][best_guess] += 1
 
                 if best_guess == c:
@@ -201,6 +187,28 @@ class DependenceTreeClassifier(Classifier):
             print "Class " + str(c) + " Accuracy: " + str(class_accuracy[c])
 
         return class_accuracy
+
+    def evaluate(self, data):
+        best_guess = -1
+        best_confidence = -1
+
+        for tc, tree in enumerate(self.depTrees):
+            confidence = 1.0
+            for f, feature in enumerate(data.features):
+                n = tree.get_node(f)
+
+                # Check for root
+                if n.parent is None:
+                    confidence *= n.value[0] if feature == 0 else (1 - n.value[0])
+                else:  # Check the parent's value, and get the probability of the current feature
+                    confidence *= n.value[data.features[n.parent.id]] if \
+                        feature == 0 else (1 - n.value[data.features[n.parent.id]])
+
+            if confidence > best_confidence:
+                best_confidence = confidence
+                best_guess = tc
+
+        return best_guess, best_confidence
 
 
 def entropy(pair):
@@ -213,6 +221,7 @@ def entropy(pair):
 
 class DecisionTreeClassifier(Classifier):
     def __init__(self, class_data, num_features):
+        self.root_dict = {}
         Classifier.__init__(self, class_data, num_features)
 
     def generate_tree(self, positive_set, negative_set, parent_node=None, nodes=None):
@@ -304,32 +313,20 @@ class DecisionTreeClassifier(Classifier):
     def perform_train_and_test(self, training_data, testing_data):
         # Test each class
 
-        root_dict = {}
+        self.root_dict = {}
 
         # Training, generate all the combinations of decision trees for the training data
         for a, b in itertools.combinations(training_data, 2):
-            root_dict[(training_data.index(a), training_data.index(b))] = self.generate_tree(a, b)
+            self.root_dict[(training_data.index(a), training_data.index(b))] = self.generate_tree(a, b)
 
         class_accuracy = []
         for c, test_data in enumerate(testing_data):
             class_accuracy.append(0)
             # Using pairwise classification
             for data in test_data:
-                best_guess = 0
-                for next_class in range(1, len(training_data)):
-                    current_node = root_dict.get((best_guess, next_class), None)
-                    while current_node is not None:
-                        # If we have a value, we found the leaf, check to see which class it wishes to classify
-                        if current_node.value is not None:
-                            if current_node.value == 1:
-                                best_guess = next_class
-                            break
-
-                        # Progress through tree
-                        decision = data.features[current_node.id]
-                        current_node = current_node.children[decision]
-
+                best_guess, best_confidence = self.evaluate(data)
                 self.confusion_matrix[c][best_guess] += 1
+
                 # Determine success or failure of classification
                 if best_guess == c:
                     class_accuracy[c] += 1
@@ -339,3 +336,22 @@ class DecisionTreeClassifier(Classifier):
             print "Class " + str(c) + " Accuracy: " + str(class_accuracy[c])
 
         return class_accuracy
+
+    def evaluate(self, data):
+        best_guess = 0
+        for next_class in range(1, len(self.classes)):
+            current_node = self.root_dict.get((best_guess, next_class), None)
+            while current_node is not None:
+                # If we have a value, we found the leaf, check to see which class it wishes to classify
+                if current_node.value is not None:
+                    if current_node.value == 1:
+                        best_guess = next_class
+                    break
+
+                # Progress through tree
+                decision = data.features[current_node.id]
+                current_node = current_node.children[decision]
+
+        return best_guess, -1
+
+        pass

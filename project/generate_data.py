@@ -16,7 +16,7 @@ def generate_data(num_data):
     valid_plays = []
     invalid_plays = []
     while num_left > 0:
-        for num_cards in range(5):
+        for num_cards in range(1, 6):
             hand = []
             deck = Deck()
             for i in range(num_cards):

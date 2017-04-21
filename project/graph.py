@@ -34,8 +34,11 @@ class Graph(object):
                 pij = float(cij) / len(flat_data)
                 pi = float(ci) / len(flat_data)
                 pj = float(cj) / len(flat_data)
-                test = pij / (pi * pj)
-                emi += pij * math.log(test, 2)
+
+                # If one of our values are 0 then the emi for this combination would be 0, therefore we can skip adding
+                if pi != 0 and pj != 0:
+                    test = pij / (pi * pj)
+                    emi += pij * math.log(test, 2)
 
             self.edges.append(Edge(x, y, emi))
 

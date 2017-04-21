@@ -1,3 +1,25 @@
+def load_data(valid_class_file, invalid_class_file, fold_validation=5):
+    with open(valid_class_file) as f:
+        valid_lines = f.readlines()
+
+    with open(invalid_class_file) as f:
+        invalid_lines = f.readlines()
+
+    # Setting the size to fit into the fold validation
+    smallest_length = len(valid_lines) if len(valid_lines) < len(invalid_lines) else len(invalid_lines)
+    data_size = smallest_length / fold_validation
+    data_size *= fold_validation
+    valid_lines = valid_lines[:data_size]
+    invalid_lines = invalid_lines[:data_size]
+
+    # Formatting strings to list
+    valid_lines = [map(int, list(x.strip())) for x in valid_lines]
+    invalid_lines = [map(int, list(x.strip())) for x in invalid_lines]
+
+    # Returning the list
+    return valid_lines, invalid_lines, len(valid_lines[0])
+
+
 def Load_File_Data(file_name, fold_validation=5):
     current_class = -1
 
